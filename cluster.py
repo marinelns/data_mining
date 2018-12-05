@@ -1,10 +1,12 @@
 import numpy as np
+import scipy
 import scipy.sparse
 import scipy.sparse.csgraph
 import scipy.sparse.linalg
 from sklearn.cluster import KMeans
+import sklearn
 
-filename = 'ca-AstroPh.txt'
+filename = 'ca-GrQc.txt'
 edges = []
 def adjacency_matrix(filename):
     f = open(filename)
@@ -38,9 +40,28 @@ def unorm_laplacian(A, D):
             L[i][j] = D[i][j] - A[i][j]
     return(L)
 
+def norm_laplacian(A, D):
+    n = A.shape[0]
+    I = np.identity(n)
+    L = np.zeros((n,n))
+    D_ = scipy.linalg.fractional_matrix_power(D, -1/2)
+    L = I - np.dot(D_, np.dot(A,D_))
+    return(L)
+
 def mat_eigen(L, k):
     eigenvals, eigenvects = scipy.sparse.linalg.eigs(L, k)
+    print('Eigenvalues : {}'.format(eigenvals))
+    print('vectors : {}'.format(eigenvects))
     return(np.real(eigenvects))
+
+def mat_eigen_norm(L, k):
+    eigenvals, eigenvects = scipy.sparse.linalg.eigs(L, k)
+    print('Eigenvalues : {}'.format(eigenvals))
+    print('vectors : {}'.format(eigenvects))
+    U = np.real(eigenvects)
+    U = sklearn.preprocessing.normalize(U)
+    return(U)
+
 
 def kmeans(U, k):
     km = KMeans(n_clusters = k).fit(U)
@@ -60,14 +81,14 @@ def phi(edges, pred, k):
     n = len(edges)
     E = 0
     sizes = [0]*k
+    unique, counts = np.unique(pred, return_counts = True)
+    minimum = min(counts)
     for i in range(n):
-        sizes[edges[i][0]]+=1
-        sizes[edges[i][1]]+=1
         if edges[i][0] != edges[i][1]:
             E+=1
     print('E : {}'.format(E))
-    print('sizes : {}'.format(sizes))
-    return(E/min(sizes))
+    print('sizes : {}'.format(minimum))
+    return(E/minimum)
 
 def main(filename):
     A, edges = adjacency_matrix(filename)
@@ -76,8 +97,9 @@ def main(filename):
     #print('taille : {}'.format(A.shape[0]))
     D = degree_matrix(A)
     #print('D : {}'.format(D))
-    L = unorm_laplacian(A,D)
-    #print('L : {}'.format(L))
+    #L = unorm_laplacian(A,D)
+    L = norm_laplacian(A,D)
+    print('L : {}'.format(L))
     U = mat_eigen(L, 2)
     #print('U : {}'.format(U))
     pred  = kmeans(U, 2)
